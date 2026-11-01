@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { playSound } from '../utils/sound'
 
 export default function AdvancementToast({ soundEnabled }) {
   const [visible, setVisible] = useState(false)
+  const soundRef = useRef(soundEnabled)
 
   useEffect(() => {
-    // Show toast after slight delay on initial load
+    soundRef.current = soundEnabled
+  }, [soundEnabled])
+
+  useEffect(() => {
+    // Show toast after slight delay on initial load only once
     const timer = setTimeout(() => {
       setVisible(true)
-      playSound('xp', soundEnabled)
+      playSound('xp', soundRef.current)
     }, 1200)
 
     const hideTimer = setTimeout(() => {
@@ -19,7 +24,7 @@ export default function AdvancementToast({ soundEnabled }) {
       clearTimeout(timer)
       clearTimeout(hideTimer)
     }
-  }, [soundEnabled])
+  }, [])
 
   if (!visible) return null
 
@@ -27,7 +32,7 @@ export default function AdvancementToast({ soundEnabled }) {
     <div
       className="advancement-toast"
       onClick={() => {
-        playSound('click', soundEnabled)
+        playSound('click', soundRef.current)
         setVisible(false)
       }}
       role="alert"

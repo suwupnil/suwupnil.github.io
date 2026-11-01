@@ -7,37 +7,47 @@ export default function TerminalConsole({
   onClose,
   soundEnabled,
   setActiveBiome,
+  onToggleJukebox,
 }) {
   const [messages, setMessages] = useState(DEFAULT_CHAT_MESSAGES)
   const [inputVal, setInputVal] = useState('')
   const inputRef = useRef(null)
   const chatBottomRef = useRef(null)
 
-  // Focus input when opened
+  // Focus input and lock body scroll when opened
   useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = 'hidden'
       setTimeout(() => inputRef.current?.focus(), 50)
       playSound('pop', soundEnabled)
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
     }
   }, [isOpen, soundEnabled])
 
   // Scroll to bottom on new message
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (isOpen) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isOpen])
 
-  // Listen for `/` keypress to open console
+  // Listen for Escape key to close console
   useEffect(() => {
+    if (!isOpen) return
+
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
-      if (e.key === '/') {
+      if (e.key === 'Escape') {
         e.preventDefault()
-        onClose(false) // Toggle or ensure open
+        onClose()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  }, [isOpen, onClose])
 
   const handleCommand = (cmdText) => {
     const trimmed = cmdText.trim()
@@ -64,9 +74,10 @@ export default function TerminalConsole({
           response =
             '§bAvailable Commands:\n' +
             '§e/stats §7- Show GitHub developer statistics\n' +
-            '§e/tp [hero|inventory|skills|contact] §7- Teleport to section\n' +
+            '§e/tp [hero|inventory|skills|advancements|contact] §7- Teleport to section\n' +
             '§e/theme [overworld|nether|end] §7- Switch world biome\n' +
-            '§e/projects §7- List all crafted projects\n' +
+            '§e/projects §7- List crafted portfolio items\n' +
+            '§e/jukebox §7- Play or stop 8-bit music disc\n' +
             '§e/ping §7- Check server heartbeat\n' +
             '§e/clear §7- Wipe chat history'
           break
@@ -77,15 +88,18 @@ export default function TerminalConsole({
             `§f• Public Repos: §e${PROFILE.public_repos}\n` +
             `§f• Followers: §e${PROFILE.followers}\n` +
             `§f• Coding Since: §e${PROFILE.member_since}\n` +
-            `§f• Domain: §b${PROFILE.blog}`
+            `§f• Custom Domain: §b${PROFILE.blog}`
           break
 
         case 'tp':
         case 'teleport': {
-          const valid = ['hero', 'inventory', 'skills', 'contact', 'advancements']
+          const valid = ['hero', 'inventory', 'skills', 'advancements', 'contact']
           if (valid.includes(arg)) {
-            const el = document.getElementById(arg)
-            if (el) el.scrollIntoView({ behavior: 'smooth' })
+            onClose()
+            setTimeout(() => {
+              const el = document.getElementById(arg)
+              if (el) el.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
             response = `§aTeleported to §e#${arg}§a successfully.`
             playSound('levelUp', soundEnabled)
           } else {
@@ -107,11 +121,17 @@ export default function TerminalConsole({
           break
         }
 
+        case 'jukebox':
+        case 'music':
+          if (onToggleJukebox) onToggleJukebox()
+          response = '§d♪ Jukebox disc toggled! ♪'
+          break
+
         case 'projects':
           response =
-            '§bTop Projects:\n' +
-            PROJECTS.slice(0, 5)
-              .map((p) => `§f• §a${p.name} §7(★${p.stars}) - ${p.description.slice(0, 45)}...`)
+            '§bCrafted Artifacts:\n' +
+            PROJECTS.slice(0, 6)
+              .map((p) => `§f• §a${p.name} §7(★${p.stars}) - ${p.description.slice(0, 42)}...`)
               .join('\n')
           break
 
@@ -136,7 +156,7 @@ export default function TerminalConsole({
       })
       playSound('pop', soundEnabled)
     } else {
-      // General chat
+      // General chat message
       newMsgs.push({
         id: Date.now() + 1,
         sender: 'suwupnil',
@@ -186,12 +206,13 @@ export default function TerminalConsole({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Minecraft Command Console"
+        aria-modal="true"
       >
         <div className="mc-chat-header">
           <span className="chat-title">💬 MINECRAFT COMMAND CONSOLE</span>
           <div className="chat-header-actions">
             <span className="chat-hint">ESC to close</span>
-            <button className="chat-close-btn" onClick={onClose} aria-label="Close">
+            <button className="chat-close-btn" onClick={onClose} aria-label="Close Console">
               ✕
             </button>
           </div>

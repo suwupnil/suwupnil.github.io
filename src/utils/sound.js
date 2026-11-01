@@ -2,6 +2,8 @@
 // Zero external files, 100% self-contained & lightweight
 
 let audioCtx = null
+let currentJukeboxNodes = []
+let jukeboxTimer = null
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null
@@ -124,4 +126,100 @@ export const playSound = (type, enabled = true) => {
     default:
       break
   }
+}
+
+export const stopJukebox = () => {
+  if (jukeboxTimer) {
+    clearTimeout(jukeboxTimer)
+    jukeboxTimer = null
+  }
+  currentJukeboxNodes.forEach((node) => {
+    try {
+      node.stop()
+      node.disconnect()
+    } catch (_) {}
+  })
+  currentJukeboxNodes = []
+}
+
+export const isJukeboxPlaying = () => currentJukeboxNodes.length > 0
+
+export const playJukeboxTrack = (enabled = true, onEnded = null) => {
+  if (!enabled) return false
+  if (isJukeboxPlaying()) {
+    stopJukebox()
+    playSound('pop', enabled)
+    if (onEnded) onEnded()
+    return false
+  }
+
+  const ctx = getAudioContext()
+  if (!ctx) return false
+
+  stopJukebox()
+  const now = ctx.currentTime
+
+  // Nostalgic Minecraft C418-inspired chiptune melody (Subwoofer Lullaby / Sweden vibes)
+  // [frequency, timeOffset, duration]
+  const melody = [
+    [523.25, 0.0, 0.28], // C5
+    [587.33, 0.3, 0.28], // D5
+    [659.25, 0.6, 0.28], // E5
+    [783.99, 0.9, 0.45], // G5
+    [659.25, 1.4, 0.28], // E5
+    [523.25, 1.7, 0.55], // C5
+    [440.00, 2.3, 0.28], // A4
+    [523.25, 2.6, 0.28], // C5
+    [587.33, 2.9, 0.55], // D5
+    [493.88, 3.5, 0.55], // B4
+    [523.25, 4.1, 0.70], // C5
+  ]
+
+  const bass = [
+    [261.63, 0.0, 1.2], // C4
+    [220.00, 1.3, 1.0], // A3
+    [174.61, 2.3, 1.2], // F3
+    [196.00, 3.5, 1.3], // G3
+  ]
+
+  melody.forEach(([freq, offset, dur]) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(freq, now + offset)
+
+    gain.gain.setValueAtTime(0.001, now + offset)
+    gain.gain.linearRampToValueAtTime(0.12, now + offset + 0.04)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + dur)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(now + offset)
+    osc.stop(now + offset + dur)
+    currentJukeboxNodes.push(osc)
+  })
+
+  bass.forEach(([freq, offset, dur]) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, now + offset)
+
+    gain.gain.setValueAtTime(0.001, now + offset)
+    gain.gain.linearRampToValueAtTime(0.07, now + offset + 0.05)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + dur)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(now + offset)
+    osc.stop(now + offset + dur)
+    currentJukeboxNodes.push(osc)
+  })
+
+  jukeboxTimer = setTimeout(() => {
+    currentJukeboxNodes = []
+    if (onEnded) onEnded()
+  }, 4900)
+
+  return true
 }

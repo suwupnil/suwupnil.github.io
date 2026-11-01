@@ -10,23 +10,25 @@ export default function MinecraftHUD({
   activeSlot,
   setActiveSlot,
   onOpenChat,
+  onToggleJukebox,
+  isJukeboxPlaying,
+  isOverlayOpen,
 }) {
   // Listen for keyboard number shortcuts 1-9
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't intercept if user is typing in an input
+      // Don't intercept if user is typing in an input or modal is open
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
+      if (isOverlayOpen) return
 
       const num = parseInt(e.key, 10)
       if (num >= 1 && num <= 9) {
-        setActiveSlot(num)
-        playSound('click', soundEnabled)
         handleSlotAction(num)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [soundEnabled])
+  }, [soundEnabled, isOverlayOpen, onToggleJukebox, onOpenChat])
 
   const handleSlotAction = (slotId) => {
     setActiveSlot(slotId)
@@ -36,10 +38,10 @@ export default function MinecraftHUD({
       1: '#hero',
       2: '#inventory',
       3: '#skills',
-      4: 'chat',
+      4: '#advancements',
       5: '#contact',
-      6: '#advancements',
-      7: '#inventory',
+      6: 'chat',
+      7: 'jukebox',
       8: 'blog',
       9: 'github',
     }
@@ -47,6 +49,8 @@ export default function MinecraftHUD({
     const target = targets[slotId]
     if (target === 'chat') {
       onOpenChat()
+    } else if (target === 'jukebox') {
+      if (onToggleJukebox) onToggleJukebox()
     } else if (target === 'blog') {
       window.open(`https://${PROFILE.blog}`, '_blank')
     } else if (target === 'github') {
@@ -63,17 +67,17 @@ export default function MinecraftHUD({
     { id: 1, label: 'Hero', icon: '👤', key: '1' },
     { id: 2, label: 'Chest', icon: '🎒', key: '2' },
     { id: 3, label: 'Alchemy', icon: '⚗️', key: '3' },
-    { id: 4, label: 'Console', icon: '💬', key: '4' },
+    { id: 4, label: 'Trophy', icon: '🏆', key: '4' },
     { id: 5, label: 'F3 Debug', icon: '🧭', key: '5' },
-    { id: 6, label: 'Trophy', icon: '🏆', key: '6' },
-    { id: 7, label: 'Jukebox', icon: '💿', key: '7' },
+    { id: 6, label: 'Console', icon: '💬', key: '6' },
+    { id: 7, label: isJukeboxPlaying ? 'Playing' : 'Jukebox', icon: '💿', key: '7' },
     { id: 8, label: 'pnil.me', icon: '🌐', key: '8' },
     { id: 9, label: 'GitHub', icon: '⚔️', key: '9' },
   ]
 
   return (
     <>
-      {/* Top HUD Nav */}
+      {/* Top HUD Navigation Bar */}
       <header className="hud-top">
         <div className="hud-brand">
           <span className="player-tag">&lt;{PROFILE.login}&gt;</span>
@@ -117,24 +121,28 @@ export default function MinecraftHUD({
       </header>
 
       {/* Floating Bottom Hotbar HUD */}
-      <aside className="hud-bottom-container" aria-label="Minecraft Hotbar">
-        {/* Hearts, Level and Armor status */}
+      <aside
+        className={`hud-bottom-container ${isOverlayOpen ? 'hud-hidden' : ''}`}
+        aria-label="Minecraft Hotbar"
+      >
+        {/* Hearts, Level and Armor / Hunger status bar */}
         <div className="hud-status-bar">
           <div className="status-hearts" title="20/20 HP">
             {Array.from({ length: 10 }).map((_, i) => (
-              <span key={i} className="pixel-heart">❤</span>
+              <span key={i} className="pixel-heart" aria-hidden="true">❤</span>
             ))}
           </div>
 
-          <div className="status-level-badge">
-            <span className="level-number">{PROFILE.xp_level}</span>
-          </div>
-
-          <div className="status-armor" title="Full Armor Protection">
+          <div className="status-armor" title="Armor Protection & Hunger">
             {Array.from({ length: 10 }).map((_, i) => (
-              <span key={i} className="pixel-shield">🛡</span>
+              <span key={i} className="pixel-drumstick" aria-hidden="true">🍗</span>
             ))}
           </div>
+        </div>
+
+        {/* Level badge atop XP bar */}
+        <div className="hud-xp-badge-wrapper">
+          <span className="level-number">{PROFILE.xp_level}</span>
         </div>
 
         {/* Experience Bar */}
@@ -142,12 +150,12 @@ export default function MinecraftHUD({
           <div className="hud-xp-bar-fill" style={{ width: '78%' }} />
         </div>
 
-        {/* The 9-slot Hotbar */}
+        {/* 9-slot Hotbar */}
         <div className="hotbar-slots-grid">
           {HOTBAR_ITEMS.map((item) => (
             <button
               key={item.id}
-              className={`hotbar-slot ${activeSlot === item.id ? 'active' : ''}`}
+              className={`hotbar-slot ${activeSlot === item.id ? 'active' : ''} ${item.id === 7 && isJukeboxPlaying ? 'jukebox-spin' : ''}`}
               onClick={() => handleSlotAction(item.id)}
               title={`${item.label} [Press ${item.key}]`}
             >

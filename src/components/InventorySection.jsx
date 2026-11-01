@@ -1,16 +1,41 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PROJECTS } from '../data/githubData'
 import { playSound } from '../utils/sound'
 
-export default function InventorySection({ soundEnabled }) {
+export default function InventorySection({ soundEnabled, onModalChange }) {
   const [activeCategory, setActiveCategory] = useState('all')
   const [selectedProject, setSelectedProject] = useState(null)
   const [hoveredProject, setHoveredProject] = useState(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
-  const filteredProjects = activeCategory === 'all'
-    ? PROJECTS
-    : PROJECTS.filter((p) => p.category === activeCategory)
+  const filteredProjects =
+    activeCategory === 'all'
+      ? PROJECTS
+      : PROJECTS.filter((p) => p.category === activeCategory)
+
+  // Manage Escape key and body scroll lock when modal is open
+  useEffect(() => {
+    if (selectedProject) {
+      document.body.style.overflow = 'hidden'
+      if (onModalChange) onModalChange(true)
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          closeInspector()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown)
+        document.body.style.overflow = ''
+        if (onModalChange) onModalChange(false)
+      }
+    } else {
+      document.body.style.overflow = ''
+      if (onModalChange) onModalChange(false)
+    }
+  }, [selectedProject, onModalChange])
 
   const handleMouseMove = (e) => {
     setTooltipPos({ x: e.clientX, y: e.clientY })
@@ -65,6 +90,15 @@ export default function InventorySection({ soundEnabled }) {
           🌐 Web Creations
         </button>
         <button
+          className={`inv-tab ${activeCategory === 'ai' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveCategory('ai')
+            playSound('click', soundEnabled)
+          }}
+        >
+          🤖 AI & NLP
+        </button>
+        <button
           className={`inv-tab ${activeCategory === 'iot' ? 'active' : ''}`}
           onClick={() => {
             setActiveCategory('iot')
@@ -107,7 +141,10 @@ export default function InventorySection({ soundEnabled }) {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') openInspector(project)
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  openInspector(project)
+                }
               }}
             >
               <div className="slot-inner">
@@ -127,8 +164,8 @@ export default function InventorySection({ soundEnabled }) {
         <div
           className="mc-tooltip"
           style={{
-            left: `${Math.min(tooltipPos.x + 16, window.innerWidth - 300)}px`,
-            top: `${tooltipPos.y + 16}px`,
+            left: `${Math.min(tooltipPos.x + 16, window.innerWidth - 320)}px`,
+            top: `${Math.min(tooltipPos.y + 16, window.innerHeight - 240)}px`,
           }}
         >
           <div className="mc-tooltip-title" style={{ color: hoveredProject.rarityColor }}>
@@ -159,18 +196,22 @@ export default function InventorySection({ soundEnabled }) {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
+            aria-label={`Inspect ${selectedProject.name}`}
           >
             <div className="mc-modal-header">
               <span className="mc-modal-title">
                 {selectedProject.icon} {selectedProject.name}
               </span>
-              <button
-                className="mc-modal-close-btn"
-                onClick={closeInspector}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+              <div className="modal-header-actions">
+                <span className="modal-hint">ESC to close</span>
+                <button
+                  className="mc-modal-close-btn"
+                  onClick={closeInspector}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="mc-modal-body">

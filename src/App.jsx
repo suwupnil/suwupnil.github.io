@@ -8,17 +8,34 @@ import SkillsEnchanter from './components/SkillsEnchanter'
 import AdvancementsSection from './components/AdvancementsSection'
 import CoordinatesContact from './components/CoordinatesContact'
 import TerminalConsole from './components/TerminalConsole'
+import { playJukeboxTrack, stopJukebox } from './utils/sound'
 
 export default function App() {
   const [activeBiome, setActiveBiome] = useState('overworld')
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [activeSlot, setActiveSlot] = useState(1)
   const [chatOpen, setChatOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isJukeboxPlaying, setIsJukeboxPlaying] = useState(false)
+  const [jukeboxToast, setJukeboxToast] = useState(false)
 
-  // Sync active slot on scroll position
+  // Global "/" key shortcut to open console
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
+      if (e.key === '/') {
+        e.preventDefault()
+        setChatOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
+  // Sync active slot on scroll position (1: Hero, 2: Chest, 3: Alchemy, 4: Trophy, 5: F3 Debug)
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 200
+      const scrollPos = window.scrollY + window.innerHeight * 0.35
       const heroEl = document.getElementById('hero')
       const invEl = document.getElementById('inventory')
       const skillsEl = document.getElementById('skills')
@@ -28,7 +45,7 @@ export default function App() {
       if (contactEl && scrollPos >= contactEl.offsetTop) {
         setActiveSlot(5)
       } else if (advEl && scrollPos >= advEl.offsetTop) {
-        setActiveSlot(6)
+        setActiveSlot(4)
       } else if (skillsEl && scrollPos >= skillsEl.offsetTop) {
         setActiveSlot(3)
       } else if (invEl && scrollPos >= invEl.offsetTop) {
@@ -42,6 +59,28 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  const handleToggleJukebox = () => {
+    const playing = playJukeboxTrack(soundEnabled, () => {
+      setIsJukeboxPlaying(false)
+      setJukeboxToast(false)
+    })
+    setIsJukeboxPlaying(playing)
+    if (playing) {
+      setJukeboxToast(true)
+      setTimeout(() => setJukeboxToast(false), 4500)
+    } else {
+      setJukeboxToast(false)
+    }
+  }
+
+  const handleStopJukebox = () => {
+    stopJukebox()
+    setIsJukeboxPlaying(false)
+    setJukeboxToast(false)
+  }
+
+  const isOverlayOpen = chatOpen || isModalOpen
+
   return (
     <div className={`app-root biome-${activeBiome}`}>
       {/* Dynamic Background Elements */}
@@ -52,6 +91,18 @@ export default function App() {
       {/* Advancement Notification Toast */}
       <AdvancementToast soundEnabled={soundEnabled} />
 
+      {/* Jukebox Music Disc Toast */}
+      {jukeboxToast && (
+        <div className="jukebox-disc-toast" role="status" onClick={handleStopJukebox}>
+          <span className="disc-icon">💿</span>
+          <div className="disc-text">
+            <span className="disc-sub">Now Playing:</span>
+            <span className="disc-title">C418 - "13" (8-Bit Synthesis)</span>
+          </div>
+          <button className="disc-stop-btn" title="Stop Disc">■</button>
+        </div>
+      )}
+
       {/* Main Minecraft HUD Navigation */}
       <MinecraftHUD
         activeBiome={activeBiome}
@@ -61,6 +112,9 @@ export default function App() {
         activeSlot={activeSlot}
         setActiveSlot={setActiveSlot}
         onOpenChat={() => setChatOpen(true)}
+        onToggleJukebox={handleToggleJukebox}
+        isJukeboxPlaying={isJukeboxPlaying}
+        isOverlayOpen={isOverlayOpen}
       />
 
       {/* Main Content Area */}
@@ -69,7 +123,10 @@ export default function App() {
           soundEnabled={soundEnabled}
           onOpenChat={() => setChatOpen(true)}
         />
-        <InventorySection soundEnabled={soundEnabled} />
+        <InventorySection
+          soundEnabled={soundEnabled}
+          onModalChange={setIsModalOpen}
+        />
         <SkillsEnchanter soundEnabled={soundEnabled} />
         <AdvancementsSection soundEnabled={soundEnabled} />
         <CoordinatesContact
@@ -84,6 +141,7 @@ export default function App() {
         onClose={() => setChatOpen(false)}
         soundEnabled={soundEnabled}
         setActiveBiome={setActiveBiome}
+        onToggleJukebox={handleToggleJukebox}
       />
     </div>
   )
