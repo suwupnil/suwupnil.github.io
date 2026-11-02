@@ -4,7 +4,7 @@ export const PROFILE = {
   gamertag: 'suwupnil',
   title: 'Full-Stack Craftsman & Vibe Coder',
   avatar_url: 'https://avatars.githubusercontent.com/u/90128544?v=4',
-  bio: 'did u call my Jadu? 🥺',
+  bio: 'hello world',
   location: 'India',
   realm: 'Earth (Overworld)',
   coordinates: 'X: 2021 Y: 64 Z: 2026',
